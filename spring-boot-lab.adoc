@@ -1,0 +1,410 @@
+= Introduction to Spring Boot
+Agnes Crepet <agnes@ninja-squad.com> <agnes.crepet@emse.fr>
+based on Brian Clozel <bclozel@pivotal.io> tutorial
+:revremark: Creative Commons BY-NC-SA 4.0 International License
+:sectids!:
+:sectanchors: true
+:source-highlighter: prettify
+:icons: font
+:toc:
+:spring-boot-version: 1.5.7.RELEASE
+:spring-framework-version: 5.0.0.RELEASE
+:group-id: fr.emse.majeureinfo
+
+[[introduction]]
+== Introduction
+
+https://projects.spring.io/spring-framework[Spring Framework] is a popular, open-source, Java-based application framework
+- it's well known for its flexibility and its rich ecosystem. Many other projects are in the Spring Platform, for
+big data, batch workloads, storing data, securing applications, and more!
+
+https://projects.spring.io/spring-framework[Spring Boot] takes an opinionated view of the Spring platform and third-party
+libraries. With Boot, it's easy to create production-grade Spring based applications for all types of workloads
+Most Spring Boot applications need very little Spring configuration. Spring Boot is a "convention over configuration"
+type of framework, with no code generation.
+
+TIP: During the whole lab, you'll find the Spring Boot
+http://docs.spring.io/spring-boot/docs/{spring-boot-version}/reference/htmlsingle/[reference documentation] /
+http://docs.spring.io/spring-boot/docs/{spring-boot-version}/api/[javadoc API]
+and the Spring Framework
+http://docs.spring.io/spring-framework/docs/{spring-framework-version}/spring-framework-reference/html/[reference documentation] /
+http://docs.spring.io/spring-framework/docs/{spring-framework-version}/javadoc-api/[javadoc API]
+quite useful.
+
+During this lab, we'll first get to know the basic concepts behind Spring Framework and then
+create a Spring Boot application and experience the development lifecycle with it.
+
+[[getting-started]]
+== Getting started - Fast!
+
+The best way to start a project with Spring is http://start.spring.io[Spring Initializr].
+This website will help you to create a minimal skeleton for your project.
+
+For this lab, we'll select the following options:
+
+* We'll generate a *Gradle* project with Spring Boot *{spring-boot-version}*
+* Our group Id `{group-id}` and artifact Id `spring-boot-intro`
+* In the dependencies search box, select `Web`, `Devtools` and JPA
+
+Click on "Generate", then unzip the file somewhere.
+
+In the `spring-boot-intro` folder, your `build.gradle` file should look like this:
+
+[source, groovy, subs="+attributes", title="build.gradle"]
+----
+buildscript {
+  ext {
+    springBootVersion = '{spring-boot-version}' <1>
+  }
+  repositories {
+    mavenCentral()
+  }
+  dependencies {
+    classpath("org.springframework.boot:spring-boot-gradle-plugin:${springBootVersion}")
+  }
+}
+
+apply plugin: 'java'
+apply plugin: 'eclipse' <2>
+apply plugin: 'org.springframework.boot'
+
+group = 'fr.emse.majeureinfo'
+version = '0.0.1-SNAPSHOT'
+sourceCompatibility = 1.8
+
+dependencies { <3>
+    compile('org.springframework.boot:spring-boot-starter-data-jpa')
+    compile('org.springframework.boot:spring-boot-starter-web')
+    runtime('org.springframework.boot:spring-boot-devtools')
+    testCompile('org.springframework.boot:spring-boot-starter-test')
+}
+----
+
+<1> Getting the latest stable version of Spring Boot
+<2> Replace 'eclipse' by 'idea'
+<3> Getting the Web, Devtools Dependencies we selected on start.spring.io and the starter for testing
+No need to specify versions for all dependencies as Spring Boot manages many versions
+
+
+You can now open a new console and run the following command:
+
+[source, bash]
+----
+$ ./gradlew idea
+----
+
+Open your project into IDEA
+
+If we have an IDEA notification "Unlinked Gradle project?", please choose to Import Gradle Project (choose your local Gradle distribution)
+
+Then, run :
+
+[source, bash]
+----
+$ ./gradlew --continuous bootRun <1>
+
+[...]
+INFO 9740 --- [  restartedMain] s.b.c.e.t.TomcatEmbeddedServletContainer : Tomcat started on port(s): 8080 (http)
+INFO 9740 --- [  restartedMain] f.i.tc.s.SpringBootIntroApplication : Started SpringBootIntroApplication in 2.971 seconds
+<==========---> 80% EXECUTING
+> :bootRun <2>
+----
+<1> the `--continuous` gradle option will restart the server when we recompile the project
+<2> the build gets "stuck" at 80%, but the server is actually started and ready to accept connections
+
+A new Tomcat server instance has started and our application is running on port `8080`.
+Using curl or a browser, we can send an HTTP request to `http://localhost:8080`.
+
+[source, bash]
+----
+$ curl http://localhost:8080/ <1>
+{"timestamp":1488035893342,"status":404,"error":"Not Found","message":"No message available","path":"/"}% <2>
+----
+<1> a server is running on port 8080 (port chosen by default, but you can configure that)
+<2> since we've defined no web endpoint, Spring answers with a custom HTTP 404 error message
+
+[[anatomy-app]]
+== Anatomy of a Spring Boot application
+
+Now you can browse the source code of your application.
+
+[source, bash]
+----
+spring-boot-intro
+|- build.gradle <1>
+|- src/
+   |- main/
+   |  |- java/
+   |  |  |- fr/emse/majeureinfo/springbootintro/
+   |  |     |- SpringBootIntroApplication.java <2>
+   |  |- resources/
+   |     |- static/ <3>
+   |     |- templates/ <4>
+   |     |- application.properties <5>
+   |- test/
+      |- java/
+         |- fr/emse/majeureinfo/springbootintro/
+            |- SpringBootIntroApplicationTests.java <6>
+----
+<1> Our Gradle build
+<2> Main Application class
+<3> Static resources (e.g. CSS, JS)
+<4> Template files (for rendering HTML views)
+<5> Spring Boot application properties
+<6> An example test file
+
+Our main Application class `SpringBootIntroApplication` looks like this:
+
+[source, java, title="src/main/java/fr/emse/majeureinfo/springbootintro/SpringBootIntroApplication.java"]
+----
+@SpringBootApplication <1>
+public class SpringBootIntroApplication {
+
+	public static void main(String[] args) { <2>
+		SpringApplication.run(SpringBootIntroApplication.class, args); <3>
+	}
+}
+----
+<1> This annotation triggers the scanning for Spring beans + auto-configuration of our application
+<2> You can start this application by just running the "main" method...
+<3> ... which in turn runs our application using its main configuration class
+
+
+[[dependency-injection]]
+== Dependency Injection
+
+This section explains the concept of Dependency Injection - you'll start writing code in the
+<<using-di>> section.
+
+When writing an application, as developers, we break the problem we're trying to solve into smaller ones
+and do our best keep in line with the architecture and design principles we've chosen for our application:
+flexible, decoupled, testable, easy to understand, etc.
+
+To do that we can break our application into components that collaborate: components are depending on each
+other. But this adds some cost: we now have to manage the lifecycle and dependencies between those. We can
+imagine something like this:
+
+[source, java, title="Bootstrapping our application"]
+----
+// Setting up our components can be quite challenging
+// and we have to maintain this code...
+DataStoreConnectionPool connectionPool = new DataStoreConnectionPool();
+DataStoreConnection connection = connectionPool.fetchConnection();
+UserStore userStore = new UserStore();
+CertificateManager certManager = new CertificateManager(certFile);
+AuthenticationService authService = new AuthenticationService(userStore, certificateManager);
+OrderService orderService = new OrderService(userStore, lineItemService);
+----
+
+Dependency injection solves that problem, and more.
+
+With Spring, you don't have to write that code, you just need to *express* those dependencies with
+Java annotations. Here's how we could write that code:
+
+[source, java, title="using Spring Framework"]
+----
+
+// CertificateManager.java
+@Component <1>
+public class CertificateManager {
+
+  //...
+}
+
+
+// DataStoreConnectionPool.java
+@Component <1>
+public class DataStoreConnectioniPool {
+
+}
+
+// MyAppConfiguration.java
+@Configuration <2>
+public class MyAppConfiguration {
+
+  @Bean <3>
+  public UserStore userStore(DataStoreConnectionPool connectionPool) {
+    return new UserStore(connectionPool.fetchConnection());
+  }
+
+}
+
+// AuthenticationService.java
+@Service <4>
+public class AuthenticationService {
+
+  private final UserStore userStore;
+  private final CertificateManager certManager;
+
+  @Autowired <5>
+  public AuthenticationService(UserStore userStore, CertificateManager certManager) {
+    this.userStore = userStore;
+    this.certManager = certManager;
+  }
+
+  public AcccountStatus getAccountStatus(UserAccount account) {
+    // here we can use the UserStore with this.userStore
+  }
+}
+----
+<1> We declare our application classes as components, by annotating them... `@Component`
+<2> We can also have Configuration classes, for components we can't annotate (not in our codebase)
+or if we want to instantiate them ourselves
+<3> "Beans" are components instances, which is why we're declaring this as a `@Bean`
+<4> There are other, specialized annotations to declare Spring components, like `@Service`
+<5> By using `@Autowired` on a constructor, we're asking Spring to inject here dependencies
+
+Once you've done that in your application, you need to configure Spring properly and start
+your application. Then Spring can:
+
+1. Look for components by scanning your application classpath (e.g. looking for annotated classes
+in the packages you've declared in your configuration)
+2. Register all those components in an *application context*
+3. Manage the lifecycle of those components (instantiate, set attributes, destroy, etc)
+4. Specialized components can accept work; Spring MVC Controllers will handle HTTP requests,
+Spring Batch Jobs will run your batch, etc
+
+In this picture, Spring Boot will configure Spring and provide automatically components for the
+libraries you're using - so you can focus on your application code and not the boilerplate.
+
+[[using-di]]
+=== Using Dependency Injection
+
+First, let's create an interface for our application:
+
+[source, java, title="src/main/java/fr/emse/majeureinfo/springbootintro/hello/GreetingService.java"]
+----
+package fr.emse.majeureinfo.springbootintro.hello;
+
+public interface GreetingService {
+
+  void greet(String name);
+}
+----
+
+Your first job is to output "Hello, Spring!" in the console as the application starts.
+For that, do the following:
+
+Create a `ConsoleGreetingService` implementation of that interface, and mark is as a component.
+The implementation of the `greet` method should write to the console using System.out.println.
+
+You can verify that your implementation is working properly by running the following test
+with the `./gradlew test` command.
+
+[source, java, title="src/test/java/fr/emse/majeureinfo/springbootintro/hello/ConsoleGreetingServiceTests.java"]
+----
+package fr.emse.majeureinfo.springbootintro.hello;
+
+import org.hamcrest.Matchers;
+import org.junit.Rule;
+import org.junit.Test;
+
+import org.springframework.boot.test.rule.OutputCapture;
+
+public class ConsoleGreetingServiceTests {
+
+  @Rule
+  public OutputCapture outputCapture = new OutputCapture();
+
+  @Test
+  public void testGreeting() {
+    ConsoleGreetingService greetingService = new ConsoleGreetingService(); <1>
+    greetingService.greet("Spring");
+    outputCapture.expect(Matchers.startsWith("Hello, Spring!"));
+  }
+}
+----
+<1> We're testing our service implementation without Spring being involved
+
+
+Now, in the `SpringBootIntroApplication` class, add a new method that returns a `CommandLineRunner`.
+`CommandLineRunner` instances are found by Spring Boot in the Spring context and are executed
+during the application startup phase.
+
+[source, java, title="src/main/java/fr/emse/majeureinfo/springbootintro/SpringBootIntroApplication.java"]
+----
+// inside the existing class, add this method
+// import org.springframework.boot.CommandLineRunner;
+
+<1>
+public CommandLineRunner greetingCommandLine() { <2>
+    return new CommandLineRunner() {
+      @Override
+      public void run(String... args) throws Exception {
+        <3>
+      }
+    };
+}
+----
+<1> First, annotate this method to mark it as instantiating a bean
+<2> Then, tell Spring that here we need here a `GreetingService` component,
+by declaring it as a method argument
+<3> Finally, call here some service method to output the `"Hello, Spring!"` message at startup;
+since we're getting `GreetingService`, no need to instantiate one manually.
+
+Starting your application, you should see something like:
+
+[source, bash]
+----
+INFO 10522 --- [  restartedMain] s.b.c.e.t.TomcatEmbeddedServletContainer : Tomcat started on port(s): 8080 (http)
+Hello, Spring!
+INFO 10522 --- [  restartedMain] f.i.tc.s.SpringBootIntroApplication      : Started SpringBootIntroApplication in 4.431 seconds (JVM running for 4.886)
+----
+
+[[di-edge-cases]]
+=== DI Edge cases
+
+Now, we're going to test a few cases to understand how a Spring Application reacts to some situations.
+For each case, try the suggested modifications, restart your application and see what happens.
+Of course, after each case, **revert those changes**, to get "back to normal".
+
+1. What happens if you comment the `@Component` / `@Service` annotation on your `ConsoleGreetingService`?
+2. Now, try adding `AnotherConsoleGreetingService` (which says "Bonjour" instead of "Hello"), marked as a component as well.
+Try again this time after adding a `@Primary` annotation on `ConsoleGreetingService`.
+3. Finally, try the following - what happens and why?
+
+[source, java, title="src/main/java/fr/emse/majeureinfo/springbootintro/hello/ConsoleGreetingService.java"]
+----
+package fr.emse.majeureinfo.springbootintro.hello;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+@Service
+public class ConsoleGreetingService implements GreetingService {
+
+  private final CycleService cycleService;
+
+  @Autowired
+  public ConsoleGreetingService(CycleService cycleService) {
+    this.cycleService = cycleService;
+  }
+
+  @Override
+  public void greet(String name) {
+    System.out.println("Hello, " + name + "!");
+  }
+}
+----
+
+[source, java, title="src/main/java/fr/emse/majeureinfo/springbootintro/hello/CycleService.java"]
+----
+package fr.emse.majeureinfo.springbootintro.hello;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+@Service
+public class CycleService {
+
+  private final ConsoleGreetingService consoleGreetingService;
+
+  @Autowired
+  public CycleService(ConsoleGreetingService consoleGreetingService) {
+    this.consoleGreetingService = consoleGreetingService;
+  }
+}
+----
+
+TIP: `@Primary` is not the only way to resolve multiple candidates, you can also use `@Qualifier`;
+check its javadoc to see how you could use it.
